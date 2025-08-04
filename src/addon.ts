@@ -18,26 +18,29 @@ function decodeBase64(str: string): string {
     return Buffer.from(str, 'base64').toString('utf8');
 }
 
-// Funzione per decodificare URL statici se sono in base64
+// Funzione per decodificare URL statici (sempre in base64)
 function decodeStaticUrl(url: string): string {
     if (!url) return url;
     
-    try {
-        // Verifica se l'URL è in base64 (controlla se contiene caratteri base64 validi)
-        const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
-        if (base64Regex.test(url) && url.length > 10) {
-            const decoded = decodeBase64(url);
-            // Verifica se il risultato decodificato sembra un URL valido
-            if (decoded.startsWith('http://') || decoded.startsWith('https://')) {
-                return decoded;
-            }
-        }
-    } catch (error) {
-        console.log(`❌ Errore nella decodifica base64 dell'URL: ${error}`);
-    }
+    console.log(`🔧 [Base64] Decodifica URL (sempre base64): ${url.substring(0, 50)}...`);
     
-    // Se non è in base64 o la decodifica fallisce, ritorna l'URL originale
-    return url;
+    try {
+        // Assicura padding corretto (lunghezza multipla di 4)
+        let paddedUrl = url;
+        while (paddedUrl.length % 4 !== 0) {
+            paddedUrl += '=';
+        }
+        
+        // Decodifica base64
+        const decoded = decodeBase64(paddedUrl);
+        console.log(`✅ [Base64] URL decodificato: ${decoded}`);
+        
+        return decoded;
+    } catch (error) {
+        console.error(`❌ [Base64] Errore nella decodifica: ${error}`);
+        console.log(`🔧 [Base64] Ritorno URL originale per errore`);
+        return url;
+    }
 }
 
 // Promisify execFile
@@ -887,9 +890,28 @@ function createBuilder(initialConfig: AddonConfig = {}) {
 
                     // staticUrl
                     if ((channel as any).staticUrl) {
+                        console.log(`🔧 [staticUrl] Raw URL: ${(channel as any).staticUrl}`);
                         const decodedUrl = decodeStaticUrl((channel as any).staticUrl);
+                        console.log(`🔧 [staticUrl] Decoded URL: ${decodedUrl}`);
+                        console.log(`🔧 [staticUrl] mfpUrl: ${mfpUrl}`);
+                        console.log(`🔧 [staticUrl] mfpPsw: ${mfpPsw ? '***' : 'NOT SET'}`);
+                        
                         if (mfpUrl && mfpPsw) {
-                            const proxyUrl = `${mfpUrl}/proxy/mpd/manifest.m3u8?api_password=${encodeURIComponent(mfpPsw)}&d=${decodedUrl}`;
+                            // Parse l'URL decodificato per separare l'URL base dai parametri
+                            const urlParts = decodedUrl.split('&');
+                            const baseUrl = urlParts[0]; // Primo elemento è l'URL base
+                            const additionalParams = urlParts.slice(1); // Resto sono i parametri aggiuntivi
+                            
+                            // Costruisci l'URL del proxy con l'URL base nel parametro d
+                            let proxyUrl = `${mfpUrl}/proxy/mpd/manifest.m3u8?api_password=${encodeURIComponent(mfpPsw)}&d=${encodeURIComponent(baseUrl)}`;
+                            
+                            // Aggiungi i parametri aggiuntivi (key_id, key, etc.) direttamente all'URL del proxy
+                            for (const param of additionalParams) {
+                                if (param) {
+                                    proxyUrl += `&${param}`;
+                                }
+                            }
+                            
                             streams.push({
                                 url: proxyUrl,
                                 title: `[📺HD] ${channel.name}`
@@ -905,9 +927,28 @@ function createBuilder(initialConfig: AddonConfig = {}) {
                     }
                     // staticUrl2
                     if ((channel as any).staticUrl2) {
+                        console.log(`🔧 [staticUrl2] Raw URL: ${(channel as any).staticUrl2}`);
                         const decodedUrl = decodeStaticUrl((channel as any).staticUrl2);
+                        console.log(`🔧 [staticUrl2] Decoded URL: ${decodedUrl}`);
+                        console.log(`🔧 [staticUrl2] mfpUrl: ${mfpUrl}`);
+                        console.log(`🔧 [staticUrl2] mfpPsw: ${mfpPsw ? '***' : 'NOT SET'}`);
+                        
                         if (mfpUrl && mfpPsw) {
-                            const proxyUrl = `${mfpUrl}/proxy/mpd/manifest.m3u8?api_password=${encodeURIComponent(mfpPsw)}&d=${decodedUrl}`;
+                            // Parse l'URL decodificato per separare l'URL base dai parametri
+                            const urlParts = decodedUrl.split('&');
+                            const baseUrl = urlParts[0]; // Primo elemento è l'URL base
+                            const additionalParams = urlParts.slice(1); // Resto sono i parametri aggiuntivi
+                            
+                            // Costruisci l'URL del proxy con l'URL base nel parametro d
+                            let proxyUrl = `${mfpUrl}/proxy/mpd/manifest.m3u8?api_password=${encodeURIComponent(mfpPsw)}&d=${encodeURIComponent(baseUrl)}`;
+                            
+                            // Aggiungi i parametri aggiuntivi (key_id, key, etc.) direttamente all'URL del proxy
+                            for (const param of additionalParams) {
+                                if (param) {
+                                    proxyUrl += `&${param}`;
+                                }
+                            }
+                            
                             streams.push({
                                 url: proxyUrl,
                                 title: `[📽️FHD] ${channel.name}`
